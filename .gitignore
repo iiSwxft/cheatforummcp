@@ -9,3 +9,6 @@ dist/
 exports/
 downloads/
 package/
+tests/fixtures/*.html
+cg_*.ts
+local-client.ts

@@ -1,5 +1,7 @@
 # mcp-unknowncheat
 
+Local installation note: automatic Turnstile interaction is disabled in `src/browser.ts`; browser challenges and account sign-in are completed manually in the visible browser.
+
 A TypeScript MCP server for reading and searching the [UnknownCheats](https://www.unknowncheats.me) forum. It uses Bun, a local Chrome window, and Cheerio to parse forum pages.
 
 ## Demo
@@ -113,6 +115,13 @@ For other clients, configure a local stdio MCP server with command `bunx` and ar
 | `index_subforum` | Refresh a bounded local thread and post index for one subforum |
 | `search_index` | Search indexed titles, snippets, and sampled posts without a network request |
 | `index_status` | Show local index coverage, counts, and last update times; optionally filter by subforum |
+| `cg_login` | Log into CheatGlobal (XenForo) with username/email and password; session persists in the browser profile |
+| `cg_check_login` | Check whether the shared session is logged into CheatGlobal |
+| `cg_get_thread` | Read a CheatGlobal thread (`/konu/<slug>.<id>/`); latest three pages by default |
+| `cg_list_forum` | List threads on a CheatGlobal section page |
+| `cg_search_forum` | Search CheatGlobal via its XenForo quick search (may require login) |
+
+CheatGlobal tools use the same shared Chrome session and Cloudflare handling as UnknownCheats. After a cleared page exists on an origin, same-origin requests run as in-page `fetch()` calls rather than full navigations, which avoids repeat challenges on aggressive configurations.
 
 The MCP tool schemas provide the available arguments. For example:
 

@@ -12,7 +12,23 @@ const DATA_DIR = process.platform === "win32"
   ? path.join(process.env.LOCALAPPDATA ?? os.homedir(), "mcp-unknowncheat")
   : path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), ".local", "share"), "mcp-unknowncheat");
 const PROFILE_DIR = process.env.UC_PROFILE_DIR ?? path.join(DATA_DIR, "chrome-profile");
-const CLOUDFLARE_INDICATORS = ["Just a moment", "cf-browser-verification", "Checking your browser"];
+// Interstitial-only markers. Do NOT add "challenge-platform" or bare
+// "cf-turnstile" — CF injects its beacon script into every cleared page.
+const CLOUDFLARE_INDICATORS = [
+  "Just a moment",
+  "cf-browser-verification",
+  "Checking your browser",
+  "_cf_chl_opt",
+  "cf-turnstile-response",
+  "cf-chl-widget",
+];
+const CLOUDFLARE_TITLES = /^\s*(just a moment|security check|attention required)/i;
+
+function hasCloudflareChallenge(html: string): boolean {
+  if (CLOUDFLARE_INDICATORS.some((indicator) => html.includes(indicator))) return true;
+  const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? "";
+  return CLOUDFLARE_TITLES.test(title);
+}
 const NAV_TIMEOUT = 30_000;
 const NAV_TIMEOUT_RETRY = 60_000;
 const CF_WAIT_MS = Number(process.env.UC_CF_WAIT_MS ?? 45_000);
@@ -25,7 +41,12 @@ function useHeadless(): boolean {
   return process.env.UC_HEADLESS === "1" || (process.platform !== "win32" && !useRealDisplay());
 }
 
-const ALLOWED_HOSTS = new Set(["www.unknowncheats.me", "unknowncheats.me"]);
+const ALLOWED_HOSTS = new Set([
+  "www.unknowncheats.me",
+  "unknowncheats.me",
+  "cheatglobal.com",
+  "www.cheatglobal.com",
+]);
 
 export function validateUrl(url: string): void {
   let parsed: URL;
@@ -38,7 +59,7 @@ export function validateUrl(url: string): void {
     throw new Error(`Blocked URL scheme: ${parsed.protocol} — only http/https allowed`);
   }
   if (!ALLOWED_HOSTS.has(parsed.hostname)) {
-    throw new Error(`Blocked URL host: ${parsed.hostname} — only unknowncheats.me is allowed`);
+    throw new Error(`Blocked URL host: ${parsed.hostname} — only unknowncheats.me and cheatglobal.com are allowed`);
   }
 }
 
@@ -106,7 +127,7 @@ async function launchBrowser(): Promise<BrowserInstance> {
   const debuggingPort = await getAvailableDebuggingPort();
   const { browser, page } = await connect({
     headless: useHeadless(),
-    turnstile: true,
+    turnstile: true, // Auto-solve CF Turnstile checkboxes (CheatGlobal gate).
     args: onWayland ? ["--ozone-platform=wayland", "--start-maximized"] : ["--start-maximized"],
     customConfig: {
       ...(executablePath ? { chromePath: executablePath } : {}),
@@ -146,10 +167,6 @@ export async function ensureFreshBrowser(): Promise<BrowserInstance["page"]> {
   return instance.page;
 }
 
-function hasCloudflareChallenge(html: string): boolean {
-  return CLOUDFLARE_INDICATORS.some((indicator) => html.includes(indicator));
-}
-
 function isPendingPage(html: string): boolean {
   return html.length < 200 || hasCloudflareChallenge(html);
 }
@@ -161,7 +178,7 @@ async function waitForChallenge(page: BrowserInstance["page"], initialHtml: stri
   }
   const waitMs = Number.isFinite(CF_WAIT_MS) ? Math.max(0, CF_WAIT_MS) : 45_000;
   const stopAt = Math.min(Date.now() + waitMs, deadlineAt ?? Infinity);
-  console.error(`[browser] Cloudflare challenge: complete it in the visible Chrome window (up to ${Math.ceil((stopAt - Date.now()) / 1000)} seconds).`);
+  console.error(`[browser] Cloudflare challenge: auto-solving; click the checkbox in the visible window if it lingers (up to ${Math.ceil((stopAt - Date.now()) / 1000)} seconds).`);
   while (Date.now() < stopAt) {
     await Bun.sleep(Math.min(1_000, stopAt - Date.now()));
     try {
@@ -190,6 +207,26 @@ function isNavigationAbortError(err: unknown): boolean {
   return err.message.includes("ERR_ABORTED") || err.message.includes("Navigation failed");
 }
 
+// fetch() inside the already-loaded page context. Returns null when not
+// applicable (cross-origin, no page) or when the response still looks like a
+// challenge — caller then falls back to a real navigation.
+async function fetchSameOrigin(page: BrowserInstance["page"], url: string): Promise<string | null> {
+  try {
+    const current = new URL(page.url());
+    const target = new URL(url);
+    if (current.origin !== target.origin || current.protocol === "about:") return null;
+    const html = await page.evaluate(async (u) => {
+      const r = await fetch(u, { credentials: "include" });
+      if (r.status >= 400) return `__HTTP_${r.status}__`;
+      return await r.text();
+    }, url);
+    if (typeof html !== "string" || html.startsWith("__HTTP_") || isPendingPage(html)) return null;
+    return html;
+  } catch {
+    return null;
+  }
+}
+
 export async function navigateWithRetry(url: string, deadlineAt?: number): Promise<{ page: BrowserInstance["page"]; html: string }> {
   url = normalizeThreadUrl(url);
   validateUrl(url);
@@ -205,6 +242,18 @@ export async function navigateWithRetry(url: string, deadlineAt?: number): Promi
   };
 
   const attempt = async (timeout: number, waitUntil: "networkidle2" | "domcontentloaded" = "domcontentloaded"): Promise<string> => {
+    // Same-origin in-page fetch first: clearance + session cookies ride along
+    // and CF interstitials gate document navigations, not XHR from an
+    // already-cleared page. Skipping the nav avoids re-challenges on
+    // aggressive sites (CheatGlobal challenges per goto).
+    const fetched = await fetchSameOrigin(page, url);
+    if (fetched !== null) {
+      if (isApacheNotFoundPage(fetched)) throw new Error(`Forum page not found (HTTP 404): ${url}`);
+      remaining(1);
+      await saveCookies(page);
+      return fetched;
+    }
+
     await page.goto(url, { waitUntil, timeout: remaining(timeout) });
 
     const html = await waitForChallenge(page, await page.content(), deadlineAt);

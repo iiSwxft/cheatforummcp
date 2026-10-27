@@ -17,6 +17,9 @@ import { registerCacheControl } from "./tools/cache-control.js";
 import { registerGetUserReputation } from "./tools/get-user-reputation.js";
 import { registerFindLatestOffsets } from "./tools/find-latest-offsets.js";
 import { registerForumIndex } from "./tools/forum-index.js";
+import { registerCgGetThread } from "./tools/cg-get-thread.js";
+import { registerCgListForum, registerCgSearchForum } from "./tools/cg-forum.js";
+import { registerCgLogin, registerCgCheckLogin } from "./tools/cg-login.js";
 
 const server = new McpServer(
   { name: "mcp-unknowncheat", version: packageJson.version },
@@ -38,6 +41,11 @@ registerCacheControl(server);
 registerGetUserReputation(server);
 registerFindLatestOffsets(server);
 registerForumIndex(server);
+registerCgGetThread(server);
+registerCgListForum(server);
+registerCgSearchForum(server);
+registerCgLogin(server);
+registerCgCheckLogin(server);
 
 // Graceful shutdown
 async function shutdown() {
