@@ -1,8 +1,8 @@
-# mcp-unknowncheat
+# cheatforummcp
+
+A TypeScript MCP server for reading and searching game-cheat forums — [UnknownCheats](https://www.unknowncheats.me) (vBulletin) and [CheatGlobal](https://cheatglobal.com) (XenForo). It uses Bun, a local Chrome window, and Cheerio to parse forum pages. Fork of [amangly/mcp-unknowncheat](https://github.com/amangly/mcp-unknowncheat) extended with CheatGlobal support.
 
 Local installation note: automatic Turnstile interaction is disabled in `src/browser.ts`; browser challenges and account sign-in are completed manually in the visible browser.
-
-A TypeScript MCP server for reading and searching the [UnknownCheats](https://www.unknowncheats.me) forum. It uses Bun, a local Chrome window, and Cheerio to parse forum pages.
 
 ## Demo
 
@@ -10,17 +10,11 @@ https://github.com/user-attachments/assets/9f00f783-0a03-4e8d-b5b6-abd308936f20
 
 ## Install
 
-Install [Bun](https://bun.sh) and Google Chrome. The server uses `puppeteer-real-browser` and your installed browser; installation does not download a browser. Set `UC_CHROME_PATH` to an absolute Chrome or Chromium executable path if Chrome is not in its standard location. Run the npm package with:
+Install [Bun](https://bun.sh) and Google Chrome. The server uses `puppeteer-real-browser` and your installed browser; installation does not download a browser. Set `UC_CHROME_PATH` to an absolute Chrome or Chromium executable path if Chrome is not in its standard location. Clone and run the source:
 
 ```sh
-bunx mcp-unknowncheatz
-```
-
-To run the source:
-
-```sh
-git clone https://github.com/amangly/mcp-unknowncheat.git
-cd mcp-unknowncheat
+git clone https://github.com/iiSwxft/cheatforummcp.git
+cd cheatforummcp
 bun install --frozen-lockfile
 bun run start
 ```
@@ -29,14 +23,14 @@ The server uses MCP over standard input and output. Chrome opens when a tool fir
 
 ## Connect an MCP client
 
-Install Bun and Chrome first. Your MCP client starts the server with `bunx mcp-unknowncheatz`; you do not need to leave a separate terminal running. The examples below use the published npm package. To use a source checkout, replace `bunx mcp-unknowncheatz` with `bun run /absolute/path/to/mcp-unknowncheat/src/index.ts`.
+Install Bun and Chrome first. Your MCP client starts the server with `bun run /absolute/path/to/cheatforummcp/src/index.ts`; you do not need to leave a separate terminal running. The upstream UnknownCheats-only variant is also published as `bunx mcp-unknowncheatz`.
 
 ### Codex
 
-Add the server from a terminal:
+Add the server from a terminal (adjust the path to your checkout):
 
 ```sh
-codex mcp add unknowncheat -- bunx mcp-unknowncheatz
+codex mcp add unknowncheat -- bun run C:/path/to/cheatforummcp/src/index.ts
 codex mcp list
 ```
 
@@ -44,8 +38,8 @@ Or add this to `~/.codex/config.toml` (on Windows, `%USERPROFILE%\.codex\config.
 
 ```toml
 [mcp_servers.unknowncheat]
-command = "bunx"
-args = ["mcp-unknowncheatz"]
+command = "bun"
+args = ["run", "C:/path/to/cheatforummcp/src/index.ts"]
 tool_timeout_sec = 120
 ```
 
@@ -54,7 +48,7 @@ Restart Codex after editing the config file.
 ### Claude Code
 
 ```sh
-claude mcp add --scope user unknowncheat -- bunx mcp-unknowncheatz
+claude mcp add --scope user unknowncheat -- bun run C:/path/to/cheatforummcp/src/index.ts
 claude mcp list
 ```
 
@@ -68,8 +62,8 @@ Add the server entry under `mcpServers` in the client's JSON config. Claude Desk
 {
   "mcpServers": {
     "unknowncheat": {
-      "command": "bunx",
-      "args": ["mcp-unknowncheatz"]
+      "command": "bun",
+      "args": ["run", "C:/path/to/cheatforummcp/src/index.ts"]
     }
   }
 }
@@ -86,14 +80,14 @@ Add this to `.vscode/mcp.json` in your workspace, then run **MCP: List Servers**
   "servers": {
     "unknowncheat": {
       "type": "stdio",
-      "command": "bunx",
-      "args": ["mcp-unknowncheatz"]
+      "command": "bun",
+      "args": ["run", "C:/path/to/cheatforummcp/src/index.ts"]
     }
   }
 }
 ```
 
-For other clients, configure a local stdio MCP server with command `bunx` and argument `mcp-unknowncheatz`. If the client cannot find `bunx`, use its absolute executable path. On first use, allow time for the package to start and for any browser challenge; where supported, set a tool timeout of at least 120 seconds. Ask the client to list its MCP tools or call `check_login` to confirm the connection.
+For other clients, configure a local stdio MCP server with command `bun` and args `run` + the absolute `src/index.ts` path. If the client cannot find `bunx`, use its absolute executable path. On first use, allow time for the package to start and for any browser challenge; where supported, set a tool timeout of at least 120 seconds. Ask the client to list its MCP tools or call `check_login` to confirm the connection.
 
 ## Tools
 
@@ -155,7 +149,7 @@ The HTML inspector reads a saved page locally and reports selector counts, parse
 
 ## Contributing
 
-Read the [contributing guide](https://github.com/amangly/mcp-unknowncheat/blob/master/CONTRIBUTING.md) for setup and pull requests. The [docs index](https://github.com/amangly/mcp-unknowncheat/blob/master/docs/README.md) links the architecture and testing guides. Bug reports should include the tool call, expected and actual result, and any page that could not be fetched; remove account data before posting.
+Read the [contributing guide](https://github.com/iiSwxft/cheatforummcp/blob/master/CONTRIBUTING.md) for setup and pull requests. The [docs index](https://github.com/iiSwxft/cheatforummcp/blob/master/docs/README.md) links the architecture and testing guides. Bug reports should include the tool call, expected and actual result, and any page that could not be fetched; remove account data before posting.
 
 ## Configuration
 
@@ -166,8 +160,8 @@ Read the [contributing guide](https://github.com/amangly/mcp-unknowncheat/blob/m
 | `UC_MIN_REQUEST_INTERVAL_MS` | `900` | Minimum interval between crawl requests, in milliseconds |
 | `UC_INDEX_PATH` | User application data directory | Path of the local SQLite search index |
 
-The npm package is [mcp-unknowncheatz](https://www.npmjs.com/package/mcp-unknowncheatz). Report bugs in [GitHub Issues](https://github.com/amangly/mcp-unknowncheat/issues).
+The upstream npm package is [mcp-unknowncheatz](https://www.npmjs.com/package/mcp-unknowncheatz) (UnknownCheats only). Report bugs for this fork in [GitHub Issues](https://github.com/iiSwxft/cheatforummcp/issues).
 
 ## License
 
-Apache License 2.0 from version 0.3.7. See [LICENSE](https://github.com/amangly/mcp-unknowncheat/blob/master/LICENSE) and [NOTICE](https://github.com/amangly/mcp-unknowncheat/blob/master/NOTICE). Published versions through 0.3.6 remain MIT licensed.
+Apache License 2.0 from version 0.3.7. See [LICENSE](https://github.com/iiSwxft/cheatforummcp/blob/master/LICENSE) and [NOTICE](https://github.com/iiSwxft/cheatforummcp/blob/master/NOTICE). Published versions through 0.3.6 remain MIT licensed.
